@@ -51,28 +51,49 @@
     window.addEventListener('resize', resize);
 
     class Person {
-        constructor(data) { this.id = data.id; this.img = new Image(); this.img.src = data.image; this.reset(); }
+        constructor(data) {
+            this.id = data.id;
+            this.img = new Image();
+            this.img.src = data.image;
+            this.reset();
+            this.nextMoveTime = Date.now() + Math.random() * 5000 + 3000; // 3~8秒后第一次动
+        }
         reset() {
-            this.x = Math.random() * width;
-            this.y = Math.random() * height;
-            this.vx = (Math.random() - 0.5) * 2;
-            this.vy = (Math.random() - 0.5) * 2;
+            this.x = Math.random() * (width - 100) + 50;
+            this.y = Math.random() * (height - 100) + 50;
+            this.targetX = this.x;
+            this.targetY = this.y;
             this.size = 40 + Math.random() * 40;
             this.angle = Math.random() * Math.PI * 2;
-            this.speed = 1 + Math.random() * 1.5;
+            this.moving = false;
         }
-        update(people) {
-            this.x += this.vx * this.speed;
-            this.y += this.vy * this.speed;
-            this.angle += 0.05;
-            if (this.x < 0 || this.x > width) this.vx *= -1;
-            if (this.y < 0 || this.y > height) this.vy *= -1;
-            people.forEach(p => {
-                if (p === this) return;
-                const dx = p.x - this.x, dy = p.y - this.y, dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < this.size + p.size) { this.vx += dx * 0.001; this.vy += dy * 0.001; }
-            });
-            if (Math.random() < 0.01) { this.vx = (Math.random() - 0.5) * 3; this.vy = (Math.random() - 0.5) * 3; }
+        update() {
+            // 偶尔决定移动一小步
+            if (!this.moving && Date.now() > this.nextMoveTime) {
+                this.targetX = this.x + (Math.random() - 0.5) * 30; // 左右晃 ±15px
+                this.targetY = this.y + (Math.random() - 0.5) * 30;
+                this.moving = true;
+                this.nextMoveTime = Date.now() + Math.random() * 5000 + 3000;
+            }
+
+            // 缓慢移动到目标点
+            if (this.moving) {
+                const dx = this.targetX - this.x;
+                const dy = this.targetY - this.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist > 1) {
+                    this.x += dx * 0.05; // 缓慢移动
+                    this.y += dy * 0.05;
+                    this.angle += 0.03; // 轻轻旋转
+                } else {
+                    this.moving = false;
+                    this.x = this.targetX;
+                    this.y = this.targetY;
+                }
+            } else {
+                // 站立时轻轻晃动
+                this.angle += 0.01;
+            }
         }
         draw() {
             ctx.save();
@@ -92,9 +113,9 @@
     });
 
     function animate() {
-        ctx.fillStyle = 'rgba(135,206,235,0.1)';
+        ctx.fillStyle = 'rgba(135,206,235,0.08)';
         ctx.fillRect(0,0,width,height);
-        people.forEach(p => { p.update(people); p.draw(); });
+        people.forEach(p => { p.update(); p.draw(); });
         requestAnimationFrame(animate);
     }
     animate();
