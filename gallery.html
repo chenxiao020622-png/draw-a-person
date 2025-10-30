@@ -6,7 +6,7 @@
     <title>全球小人广场 | Draw a Person</title>
     <style>
         body { margin:0; overflow:hidden; background: #87CEEB; font-family: sans-serif; }
-        canvas { display:block; }
+        canvas { display:block; image-rendering: pixelated; }
         #info {
             position: absolute; top: 20px; left: 20px; color: white;
             background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; font-size: 14px;
@@ -24,6 +24,10 @@
 <canvas id="canvas"></canvas>
 <div id="info">小人数量: <span id="count">0</span></div>
 <button id="draw-btn" onclick="location.href='draw-a-person.html'">我也来画一个！</button>
+
+<audio id="bgm" loop autoplay volume="0.3">
+    <source src="https://cdn.jsdelivr.net/gh/mohuani/music@master/healing-piano.mp3" type="audio/mpeg">
+</audio>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -46,33 +50,75 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let width, height;
-    function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+    function resize() { 
+        width = canvas.width = window.innerWidth; 
+        height = canvas.height = window.innerHeight; 
+    }
     resize();
     window.addEventListener('resize', resize);
+
+    // 樱花类（用路径绘制，无残影）
+    class Sakura {
+        constructor() {
+            this.reset();
+        }
+        reset() {
+            this.x = Math.random() * width;
+            this.y = -30;
+            this.size = Math.random() * 6 + 4;
+            this.speed = Math.random() * 1.5 + 0.8;
+            this.angle = 0;
+            this.swing = Math.random() * 0.08 + 0.02;
+            this.opacity = 1;
+        }
+        update() {
+            this.y += this.speed;
+            this.x += Math.sin(this.angle) * 1.5;
+            this.angle += this.swing;
+            this.opacity = 1 - (this.y / height) * 0.3;
+            if (this.y > height + 20) this.reset();
+        }
+        draw() {
+            ctx.save();
+            ctx.globalAlpha = this.opacity;
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle);
+            ctx.fillStyle = '#ffb6c1';
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const a = (i * Math.PI * 2) / 5;
+                const r = this.size;
+                ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+                ctx.quadraticCurveTo(
+                    Math.cos(a + Math.PI / 5) * r * 0.5,
+                    Math.sin(a + Math.PI / 5) * r * 0.5,
+                    Math.cos(a + Math.PI * 2.5 / 5) * r,
+                    Math.sin(a + Math.PI * 2.5 / 5) * r
+                );
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    const sakuras = Array.from({length: 15}, () => new Sakura());
 
     class Person {
         constructor(data) {
             this.id = data.id;
             this.img = new Image();
             this.img.src = data.image;
-            this.x = 0;
-            this.y = 0;
-            this.size = 40 + Math.random() * 40;
-            this.angle = 0;
-            this.targetX = 0;
-            this.targetY = 0;
-            this.moving = false;
-            this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000;
+            this.x = 0; this.y = 0; this.size = 40 + Math.random() * 40;
+            this.angle = 0; this.targetX = 0; this.targetY = 0;
+            this.moving = false; this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000;
             this.resetPosition();
         }
-
         resetPosition() {
             this.x = Math.random() * (width - 100) + 50;
             this.y = Math.random() * (height - 100) + 50;
-            this.targetX = this.x;
-            this.targetY = this.y;
+            this.targetX = this.x; this.targetY = this.y;
         }
-
         update() {
             if (!this.moving && Date.now() > this.nextMoveTime) {
                 this.targetX = this.x + (Math.random() - 0.5) * 20;
@@ -80,7 +126,6 @@
                 this.moving = true;
                 this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000;
             }
-
             if (this.moving) {
                 const dx = this.targetX - this.x;
                 const dy = this.targetY - this.y;
@@ -96,7 +141,6 @@
                 this.angle = Math.sin(Date.now() * 0.0008) * 0.05;
             }
         }
-
         draw() {
             ctx.save();
             ctx.translate(this.x, this.y);
@@ -116,18 +160,16 @@
     });
 
     function animate() {
-        // 彻底清除画布（无重影）
+        // 双重清除，100% 无残影
         ctx.clearRect(0, 0, width, height);
-        
-        // 重新画纯色背景（清爽蓝天）
         ctx.fillStyle = '#87CEEB';
         ctx.fillRect(0, 0, width, height);
 
-        // 绘制所有小人
-        people.forEach(p => {
-            p.update();
-            p.draw();
-        });
+        // 画樱花
+        sakuras.forEach(s => { s.update(); s.draw(); });
+
+        // 画小人
+        people.forEach(p => { p.update(); p.draw(); });
 
         requestAnimationFrame(animate);
     }
@@ -136,7 +178,13 @@
     window.addEventListener('resize', () => {
         resize();
         people.forEach(p => p.resetPosition());
+        sakuras.forEach(s => s.reset());
     });
+
+    // 音乐
+    document.body.addEventListener('click', () => {
+        document.getElementById('bgm').play().catch(() => {});
+    }, { once: true });
 </script>
 </body>
 </html>
