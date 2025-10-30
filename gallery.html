@@ -58,11 +58,11 @@
             this.x = 0;
             this.y = 0;
             this.size = 40 + Math.random() * 40;
-            this.angle = 0; // 固定朝前，不转圈
+            this.angle = 0;
             this.targetX = 0;
             this.targetY = 0;
             this.moving = false;
-            this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000; // 5~13秒动一次
+            this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000;
             this.resetPosition();
         }
 
@@ -74,30 +74,26 @@
         }
 
         update() {
-            // 每隔一段时间，轻轻晃动一下
             if (!this.moving && Date.now() > this.nextMoveTime) {
-                this.targetX = this.x + (Math.random() - 0.5) * 20; // 左右晃 ±10px
+                this.targetX = this.x + (Math.random() - 0.5) * 20;
                 this.targetY = this.y + (Math.random() - 0.5) * 20;
                 this.moving = true;
                 this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000;
             }
 
-            // 缓慢移动到目标点（超慢）
             if (this.moving) {
                 const dx = this.targetX - this.x;
                 const dy = this.targetY - this.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 if (dist > 0.5) {
-                    this.x += dx * 0.02; // 极慢移动
+                    this.x += dx * 0.02;
                     this.y += dy * 0.02;
-                    // 轻轻摇摆身体（不转圈）
-                    this.angle = Math.sin(Date.now() * 0.001) * 0.1; // ±5.7° 轻微摇
+                    this.angle = Math.sin(Date.now() * 0.001) * 0.1;
                 } else {
                     this.moving = false;
                 }
             } else {
-                // 站立时，极轻微呼吸式摇摆
-                this.angle = Math.sin(Date.now() * 0.0008) * 0.05; // ±2.8° 像呼吸
+                this.angle = Math.sin(Date.now() * 0.0008) * 0.05;
             }
         }
 
@@ -112,7 +108,6 @@
 
     const people = [];
 
-    // 加载新小人
     peopleRef.on('child_added', snapshot => {
         const data = snapshot.val();
         const person = new Person(data);
@@ -120,12 +115,15 @@
         document.getElementById('count').textContent = people.length;
     });
 
-    // 动画循环
     function animate() {
-        // 轻微拖尾背景（治愈感）
-        ctx.fillStyle = 'rgba(135,206,235,0.05)';
-        ctx.fillRect(0,0,width,height);
+        // 彻底清除画布（无重影）
+        ctx.clearRect(0, 0, width, height);
+        
+        // 重新画纯色背景（清爽蓝天）
+        ctx.fillStyle = '#87CEEB';
+        ctx.fillRect(0, 0, width, height);
 
+        // 绘制所有小人
         people.forEach(p => {
             p.update();
             p.draw();
@@ -135,7 +133,6 @@
     }
     animate();
 
-    // 窗口大小变化时重新定位
     window.addEventListener('resize', () => {
         resize();
         people.forEach(p => p.resetPosition());
