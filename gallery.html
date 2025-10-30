@@ -57,7 +57,7 @@
     resize();
     window.addEventListener('resize', resize);
 
-    // 樱花（保持）
+    // 樱花
     class Sakura {
         constructor() { this.reset(); }
         reset() {
@@ -101,20 +101,17 @@
     }
     const sakuras = Array.from({length: 15}, () => new Sakura());
 
-    // 小人类（无黑杠！只用图像动画）
+    // 小人类（真人走路！）
     class Person {
         constructor(data) {
             this.id = data.id;
             this.img = new Image();
             this.img.src = data.image;
             this.x = 0; this.y = 0; 
-            this.size = 120 + Math.random() * 120; // 3倍放大
-            this.angle = 0; this.targetX = 0; this.targetY = 0;
+            this.size = 120 + Math.random() * 120;
+            this.targetX = 0; this.targetY = 0;
             this.moving = false; 
             this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000;
-            this.waving = false;
-            this.nextWaveTime = Date.now() + Math.random() * 10000 + 10000;
-            this.waveCycle = 0;
             this.walkCycle = 0;
             this.resetPosition();
         }
@@ -126,54 +123,54 @@
         update() {
             const now = Date.now();
 
-            // 挥手：轻微旋转 + 缩放
-            if (!this.waving && now > this.nextWaveTime) {
-                this.waving = true;
-                this.nextWaveTime = now + Math.random() * 10000 + 20000;
-                setTimeout(() => { this.waving = false; this.waveCycle = 0; }, 3000);
-            }
-            if (this.waving) {
-                this.waveCycle += 0.2;
-                this.angle = Math.sin(this.waveCycle) * 0.15; // 轻微倾斜
-            }
-
-            // 走路：上下弹跳 + 左右微移
+            // 触发走路
             if (!this.moving && now > this.nextMoveTime) {
                 this.targetX = this.x + (Math.random() - 0.5) * 120;
                 this.targetY = this.y + (Math.random() - 0.5) * 60;
                 this.moving = true;
                 this.nextMoveTime = now + Math.random() * 15000 + 15000;
             }
+
             if (this.moving) {
                 const dx = this.targetX - this.x;
                 const dy = this.targetY - this.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist > 0.5) {
+                if (dist > 1) {
                     this.x += dx * 0.03;
                     this.y += dy * 0.03;
-                    this.walkCycle += 0.2;
-                    this.angle = Math.sin(this.walkCycle) * 0.08;
+                    this.walkCycle += 0.25; // 走路节奏
                 } else {
                     this.moving = false;
                     this.walkCycle = 0;
                 }
-            } else {
-                this.walkCycle = 0;
-                if (!this.waving) this.angle = Math.sin(now * 0.0008) * 0.05;
             }
         }
         draw() {
             ctx.save();
             ctx.translate(this.x, this.y);
-            ctx.rotate(this.angle);
 
-            // 走路时上下弹跳
-            const bounce = this.moving ? Math.sin(this.walkCycle) * 8 : 0;
-            // 挥手时放大一点
-            const waveScale = this.waving ? 1.1 + Math.sin(this.waveCycle) * 0.05 : 1;
+            // 走路时：身体轻微倾斜 + 上下弹跳
+            const bodyTilt = this.moving ? Math.sin(this.walkCycle) * 0.1 : 0;
+            const bounce = this.moving ? Math.abs(Math.sin(this.walkCycle * 2)) * 10 : 0;
+            ctx.rotate(bodyTilt);
 
-            ctx.scale(waveScale, 1);
-            ctx.drawImage(this.img, -this.size/2, -this.size/2 + bounce, this.size, this.size);
+            // 模拟手臂摆动：左右交替
+            const armSwing = this.moving ? Math.sin(this.walkCycle) * 0.3 : 0;
+            const legSwing = this.moving ? Math.sin(this.walkCycle + Math.PI) * 0.3 : 0;
+
+            // 画上半身（手臂摆动）
+            ctx.save();
+            ctx.translate(0, -this.size * 0.1);
+            ctx.rotate(armSwing);
+            ctx.drawImage(this.img, -this.size/2, -this.size/2, this.size, this.size * 0.6);
+            ctx.restore();
+
+            // 画下半身（腿部摆动）
+            ctx.save();
+            ctx.translate(0, this.size * 0.2 + bounce);
+            ctx.rotate(legSwing);
+            ctx.drawImage(this.img, -this.size/2, -this.size * 0.4, this.size, this.size * 0.8);
+            ctx.restore();
 
             ctx.restore();
         }
