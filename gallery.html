@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>全球小人广场 | Draw a Person</title>
     <style>
-        body { margin:0; overflow:hidden; background: #87CEEB; font-family: sans-sans-serif; }
+        body { margin:0; overflow:hidden; background: #87CEEB; font-family: sans-serif; }
         canvas { display:block; image-rendering: pixelated; }
         #info {
             position: absolute; top: 20px; left: 20px; color: white;
@@ -57,7 +57,7 @@
     resize();
     window.addEventListener('resize', resize);
 
-    // 樱花（保持原大小，对比更萌）
+    // 樱花（保持）
     class Sakura {
         constructor() { this.reset(); }
         reset() {
@@ -101,26 +101,24 @@
     }
     const sakuras = Array.from({length: 15}, () => new Sakura());
 
-    // 小人类（放大 3 倍！）
+    // 小人类（无黑杠！只用图像动画）
     class Person {
         constructor(data) {
             this.id = data.id;
             this.img = new Image();
             this.img.src = data.image;
             this.x = 0; this.y = 0; 
-            this.size = 120 + Math.random() * 120; // 放大3倍：120~240
+            this.size = 120 + Math.random() * 120; // 3倍放大
             this.angle = 0; this.targetX = 0; this.targetY = 0;
             this.moving = false; 
             this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000;
             this.waving = false;
             this.nextWaveTime = Date.now() + Math.random() * 10000 + 10000;
-            this.armAngle = 0;
-            this.legAngle1 = 0; this.legAngle2 = 0;
+            this.waveCycle = 0;
             this.walkCycle = 0;
             this.resetPosition();
         }
         resetPosition() {
-            // 留出大空间，避免被切掉
             this.x = Math.random() * (width - 300) + 150;
             this.y = Math.random() * (height - 300) + 150;
             this.targetX = this.x; this.targetY = this.y;
@@ -128,21 +126,20 @@
         update() {
             const now = Date.now();
 
-            // 挥手
+            // 挥手：轻微旋转 + 缩放
             if (!this.waving && now > this.nextWaveTime) {
                 this.waving = true;
                 this.nextWaveTime = now + Math.random() * 10000 + 20000;
-                setTimeout(() => { this.waving = false; }, 3000);
+                setTimeout(() => { this.waving = false; this.waveCycle = 0; }, 3000);
             }
             if (this.waving) {
-                this.armAngle = Math.sin(now * 0.01) * 0.8;
-            } else {
-                this.armAngle = 0;
+                this.waveCycle += 0.2;
+                this.angle = Math.sin(this.waveCycle) * 0.15; // 轻微倾斜
             }
 
-            // 走路（范围也放大）
+            // 走路：上下弹跳 + 左右微移
             if (!this.moving && now > this.nextMoveTime) {
-                this.targetX = this.x + (Math.random() - 0.5) * 120; // 走更远
+                this.targetX = this.x + (Math.random() - 0.5) * 120;
                 this.targetY = this.y + (Math.random() - 0.5) * 60;
                 this.moving = true;
                 this.nextMoveTime = now + Math.random() * 15000 + 15000;
@@ -155,16 +152,14 @@
                     this.x += dx * 0.03;
                     this.y += dy * 0.03;
                     this.walkCycle += 0.2;
-                    this.legAngle1 = Math.sin(this.walkCycle) * 0.5;
-                    this.legAngle2 = Math.sin(this.walkCycle + Math.PI) * 0.5;
+                    this.angle = Math.sin(this.walkCycle) * 0.08;
                 } else {
                     this.moving = false;
-                    this.legAngle1 = 0; this.legAngle2 = 0;
+                    this.walkCycle = 0;
                 }
             } else {
-                this.legAngle1 = 0; this.legAngle2 = 0;
                 this.walkCycle = 0;
-                this.angle = Math.sin(now * 0.0008) * 0.05;
+                if (!this.waving) this.angle = Math.sin(now * 0.0008) * 0.05;
             }
         }
         draw() {
@@ -172,36 +167,13 @@
             ctx.translate(this.x, this.y);
             ctx.rotate(this.angle);
 
-            // 挥手手臂（在图像下面，放大）
-            if (this.waving) {
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 5; // 更粗
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(this.size * 0.2, -this.size * 0.3);
-                const armX = this.size * 0.4 + Math.cos(this.armAngle) * this.size * 0.3;
-                const armY = -this.size * 0.3 + Math.sin(this.armAngle) * this.size * 0.3;
-                ctx.lineTo(armX, armY);
-                ctx.stroke();
-            }
+            // 走路时上下弹跳
+            const bounce = this.moving ? Math.sin(this.walkCycle) * 8 : 0;
+            // 挥手时放大一点
+            const waveScale = this.waving ? 1.1 + Math.sin(this.waveCycle) * 0.05 : 1;
 
-            // 用户图像（放大）
-            ctx.drawImage(this.img, -this.size/2, -this.size/2, this.size, this.size);
-
-            // 走路腿部（放大）
-            if (this.moving) {
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 5;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(-this.size * 0.1, this.size * 0.3);
-                ctx.lineTo(-this.size * 0.15 + Math.cos(this.legAngle1) * this.size * 0.2, 
-                           this.size * 0.5 + Math.sin(this.legAngle1) * this.size * 0.2);
-                ctx.moveTo(this.size * 0.1, this.size * 0.3);
-                ctx.lineTo(this.size * 0.15 + Math.cos(this.legAngle2) * this.size * 0.2, 
-                           this.size * 0.5 + Math.sin(this.legAngle2) * this.size * 0.2);
-                ctx.stroke();
-            }
+            ctx.scale(waveScale, 1);
+            ctx.drawImage(this.img, -this.size/2, -this.size/2 + bounce, this.size, this.size);
 
             ctx.restore();
         }
