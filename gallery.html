@@ -57,7 +57,7 @@
     resize();
     window.addEventListener('resize', resize);
 
-    // 樱花类（用路径绘制，无残影）
+    // 樱花类（保持不变，无痕）
     class Sakura {
         constructor() {
             this.reset();
@@ -104,6 +104,7 @@
 
     const sakuras = Array.from({length: 15}, () => new Sakura());
 
+    // 升级版小人类（加挥手 + 走路动画）
     class Person {
         constructor(data) {
             this.id = data.id;
@@ -111,7 +112,14 @@
             this.img.src = data.image;
             this.x = 0; this.y = 0; this.size = 40 + Math.random() * 40;
             this.angle = 0; this.targetX = 0; this.targetY = 0;
-            this.moving = false; this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000;
+            this.moving = false; 
+            this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000; // 走路间隔
+            this.waving = false;
+            this.nextWaveTime = Date.now() + Math.random() * 10000 + 10000; // 挥手间隔 10~20s
+            this.armAngle = 0; // 手臂角度
+            this.legAngle1 = 0; // 左腿
+            this.legAngle2 = 0; // 右腿
+            this.walkCycle = 0; // 走路周期
             this.resetPosition();
         }
         resetPosition() {
@@ -120,32 +128,77 @@
             this.targetX = this.x; this.targetY = this.y;
         }
         update() {
-            if (!this.moving && Date.now() > this.nextMoveTime) {
-                this.targetX = this.x + (Math.random() - 0.5) * 20;
+            const now = Date.now();
+
+            // 挥手动画
+            if (!this.waving && now > this.nextWaveTime) {
+                this.waving = true;
+                this.nextWaveTime = now + Math.random() * 10000 + 20000; // 下次挥手 20~30s
+                setTimeout(() => { this.waving = false; }, 3000); // 挥手持续3秒
+            }
+            if (this.waving) {
+                this.armAngle = Math.sin(now * 0.01) * 0.8; // 快速摆动手臂 (±45°)
+            } else {
+                this.armAngle = 0;
+            }
+
+            // 走路动画
+            if (!this.moving && now > this.nextMoveTime) {
+                this.targetX = this.x + (Math.random() - 0.5) * 50; // 走更远点
                 this.targetY = this.y + (Math.random() - 0.5) * 20;
                 this.moving = true;
-                this.nextMoveTime = Date.now() + Math.random() * 8000 + 5000;
+                this.nextMoveTime = now + Math.random() * 15000 + 15000; // 走路间隔 15~30s
             }
             if (this.moving) {
                 const dx = this.targetX - this.x;
                 const dy = this.targetY - this.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 if (dist > 0.5) {
-                    this.x += dx * 0.02;
-                    this.y += dy * 0.02;
-                    this.angle = Math.sin(Date.now() * 0.001) * 0.1;
+                    this.x += dx * 0.03; // 走路速度稍快
+                    this.y += dy * 0.03;
+                    this.walkCycle += 0.2; // 迈步周期
+                    this.legAngle1 = Math.sin(this.walkCycle) * 0.5; // 左腿摆动
+                    this.legAngle2 = Math.sin(this.walkCycle + Math.PI) * 0.5; // 右腿反向
                 } else {
                     this.moving = false;
+                    this.legAngle1 = 0;
+                    this.legAngle2 = 0;
                 }
             } else {
-                this.angle = Math.sin(Date.now() * 0.0008) * 0.05;
+                this.legAngle1 = 0;
+                this.legAngle2 = 0;
+                this.walkCycle = 0;
+                // 站立轻晃
+                this.angle = Math.sin(now * 0.0008) * 0.05;
             }
         }
         draw() {
             ctx.save();
             ctx.translate(this.x, this.y);
             ctx.rotate(this.angle);
+
+            // 由于用户画的是自定义图像，我们用图像作为主体，但叠加简单肢体动画提示
+            // （如果想更精确，可以在上传时提取肢体，但这里简化：用图像 + 手臂/腿部线条叠加）
             ctx.drawImage(this.img, -this.size/2, -this.size/2, this.size, this.size);
+
+            // 叠加挥手动臂（简单线条，位置基于图像中心）
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, -this.size/4); // 肩部
+            ctx.lineTo(this.size/4 * Math.cos(this.armAngle), this.size/4 * Math.sin(this.armAngle)); // 手臂末端
+            ctx.stroke();
+
+            // 叠加走路腿部（如果走路中）
+            if (this.moving) {
+                ctx.beginPath();
+                ctx.moveTo(0, this.size/4); // 髋部
+                ctx.lineTo(-this.size/6 * Math.cos(this.legAngle1), this.size/3 + this.size/6 * Math.sin(this.legAngle1)); // 左腿
+                ctx.moveTo(0, this.size/4);
+                ctx.lineTo(this.size/6 * Math.cos(this.legAngle2), this.size/3 + this.size/6 * Math.sin(this.legAngle2)); // 右腿
+                ctx.stroke();
+            }
+
             ctx.restore();
         }
     }
@@ -168,7 +221,7 @@
         // 画樱花
         sakuras.forEach(s => { s.update(); s.draw(); });
 
-        // 画小人
+        // 画小人（带动画）
         people.forEach(p => { p.update(); p.draw(); });
 
         requestAnimationFrame(animate);
