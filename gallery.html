@@ -6,7 +6,7 @@
     <title>全球小人广场 | Draw a Person</title>
     <style>
         body { margin:0; overflow:hidden; background: #87CEEB; font-family: sans-serif; }
-        canvas { display:block; image-rendering: pixelated; }
+        canvas { display:block; }
         #info {
             position: absolute; top: 20px; left: 20px; color: white;
             background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; font-size: 14px;
@@ -57,7 +57,7 @@
     resize();
     window.addEventListener('resize', resize);
 
-    // 樱花
+    // 樱花（保持）
     class Sakura {
         constructor() { this.reset(); }
         reset() {
@@ -101,7 +101,7 @@
     }
     const sakuras = Array.from({length: 15}, () => new Sakura());
 
-    // 小人类（真人走路！）
+    // 小人类（完整图像 + 真人走路）
     class Person {
         constructor(data) {
             this.id = data.id;
@@ -122,15 +122,12 @@
         }
         update() {
             const now = Date.now();
-
-            // 触发走路
             if (!this.moving && now > this.nextMoveTime) {
                 this.targetX = this.x + (Math.random() - 0.5) * 120;
                 this.targetY = this.y + (Math.random() - 0.5) * 60;
                 this.moving = true;
                 this.nextMoveTime = now + Math.random() * 15000 + 15000;
             }
-
             if (this.moving) {
                 const dx = this.targetX - this.x;
                 const dy = this.targetY - this.y;
@@ -138,7 +135,7 @@
                 if (dist > 1) {
                     this.x += dx * 0.03;
                     this.y += dy * 0.03;
-                    this.walkCycle += 0.25; // 走路节奏
+                    this.walkCycle += 0.25;
                 } else {
                     this.moving = false;
                     this.walkCycle = 0;
@@ -149,28 +146,22 @@
             ctx.save();
             ctx.translate(this.x, this.y);
 
-            // 走路时：身体轻微倾斜 + 上下弹跳
-            const bodyTilt = this.moving ? Math.sin(this.walkCycle) * 0.1 : 0;
-            const bounce = this.moving ? Math.abs(Math.sin(this.walkCycle * 2)) * 10 : 0;
-            ctx.rotate(bodyTilt);
+            // 走路节奏
+            const swing = this.moving ? Math.sin(this.walkCycle) : 0;
+            const bounce = this.moving ? Math.abs(Math.sin(this.walkCycle * 2)) * 8 : 0;
 
-            // 模拟手臂摆动：左右交替
-            const armSwing = this.moving ? Math.sin(this.walkCycle) * 0.3 : 0;
-            const legSwing = this.moving ? Math.sin(this.walkCycle + Math.PI) * 0.3 : 0;
+            // 整体轻微旋转（模拟摆臂）
+            ctx.rotate(swing * 0.15);
 
-            // 画上半身（手臂摆动）
-            ctx.save();
-            ctx.translate(0, -this.size * 0.1);
-            ctx.rotate(armSwing);
-            ctx.drawImage(this.img, -this.size/2, -this.size/2, this.size, this.size * 0.6);
-            ctx.restore();
+            // 轻微缩放（模拟呼吸）
+            const scale = 1 + (this.moving ? Math.sin(this.walkCycle * 2) * 0.02 : 0);
+            ctx.scale(scale, scale);
 
-            // 画下半身（腿部摆动）
-            ctx.save();
-            ctx.translate(0, this.size * 0.2 + bounce);
-            ctx.rotate(legSwing);
-            ctx.drawImage(this.img, -this.size/2, -this.size * 0.4, this.size, this.size * 0.8);
-            ctx.restore();
+            // 上下弹跳
+            ctx.translate(0, -bounce);
+
+            // 画完整图像（零分身！）
+            ctx.drawImage(this.img, -this.size/2, -this.size/2, this.size, this.size);
 
             ctx.restore();
         }
